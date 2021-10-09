@@ -6,7 +6,7 @@ import arrow.typeclasses.Semigroup
 typealias EitherEff<E> = EitherEffect<E, Any?>
 
 // TODO try to compile with multiple receivers branch
-// context(WriterEffect<String>, WriterEffect<Int>, EitherEffect<Error>)
+// context(WriterEffect<String>, KleisliEffect<Int>, EitherEffect<Error>)
 suspend fun <Ctx> Ctx.program(): Int
 // Emulate multiple receivers
   where Ctx : WriterEffect<String>,
