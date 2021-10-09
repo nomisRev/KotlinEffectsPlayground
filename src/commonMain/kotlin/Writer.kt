@@ -3,7 +3,14 @@ import arrow.continuations.generic.update
 import arrow.typeclasses.Semigroup
 
 interface WriterEffect<A> {
+  /** Write [a] to writer */
   suspend fun tell(a: A): Unit
+
+  /**
+   * Read current written values of [A].
+   * Returns null when the writer didn't receive any values of [A] through [tell].
+   */
+  suspend fun written(): A?
 }
 
 public suspend fun <A, B> writer(
@@ -15,14 +22,17 @@ public suspend fun <A, B> writer(
   return Pair(effect.result(), b)
 }
 
-private class WriterEf<A>(semigroup: Semigroup<A>) : WriterEffect<A>, Semigroup<A> by semigroup {
+private class WriterEf<A>(
+  semigroup: Semigroup<A>
+) : WriterEffect<A>, Semigroup<A> by semigroup {
   private val value = AtomicRef<Any?>(EmptyValue)
-
   override suspend fun tell(a: A) =
     value.update { original ->
       if (original === EmptyValue) a
       else (original as A).combine(a)
     }
+
+  override suspend fun written(): A? = result()
 
   fun result(): A? = EmptyValue.unbox(value.get())
 }
