@@ -1,37 +1,39 @@
-@file:Suppress("RedundantSuspendModifier")
-
-import arrow.core.Either
-import arrow.core.Either.Left
-import arrow.core.Either.Right
+import arrow.core.computations.EitherEffect
 import arrow.core.computations.either
+import arrow.core.right
+import arrow.typeclasses.Semigroup
 
-object Lettuce
-object Knife
-object Salad
+typealias EitherEff<E> = EitherEffect<E, Any?>
 
-sealed class CookingException {
-  object LettuceIsRotten : CookingException()
-  object KnifeNeedsSharpening : CookingException()
-  data class InsufficientAmount(val quantityInGrams: Int) : CookingException()
+// TODO try to compile with multiple receivers branch
+// context(WriterEffect<String>, WriterEffect<Int>, EitherEffect<Error>)
+suspend fun <Ctx> Ctx.program(): String
+// Emulate multiple receivers
+  where Ctx : WriterEffect<String>,
+        Ctx : EitherEff<Error> {
+  val msg = "Hello"
+  tell("Hello")
+  val res = msg.right().bind()
+  tell(", World!")
+  return res
 }
 
-typealias NastyLettuce = CookingException.LettuceIsRotten
-typealias KnifeIsDull = CookingException.KnifeNeedsSharpening
-typealias InsufficientAmountOfLettuce = CookingException.InsufficientAmount
-
-fun takeFoodFromRefrigerator(): Either<NastyLettuce, Lettuce> =
-  Right(Lettuce)
-
-suspend fun getKnife(): Either<KnifeIsDull, Knife> =
-  Right(Knife)
-
-fun prepare(tool: Knife, ingredient: Lettuce): Either<InsufficientAmountOfLettuce, Salad> =
-  Left(InsufficientAmountOfLettuce(5))
-
-suspend fun prepareLunch(): Either<CookingException, Salad> =
-  either {
-    val lettuce = takeFoodFromRefrigerator().bind()
-    val knife = getKnife().bind()
-    val lunch = prepare(knife, lettuce).bind()
-    lunch
+suspend fun compositionExample() {
+  val (writer, res) = writer(Semigroup.string()) {
+    either<Error, String> {
+      // This will not be needed with the Multiple Receivers, you can simply call `program()`.
+      val multipleReceiver = IntersectionTypeHack(this as EitherEff<Error>, this@writer)
+      multipleReceiver.program()
+    }
   }
+
+  println("Program finished")
+  println("Output writer: $writer")
+  println("Output program: $res")
+}
+
+// Emulate what the compiler will automatically do with multiple receivers
+class IntersectionTypeHack(
+  val either: EitherEff<Error>,
+  val writer: WriterEffect<String>
+) : EitherEff<Error> by either, WriterEffect<String> by writer
